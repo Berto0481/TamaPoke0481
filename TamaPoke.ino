@@ -3380,6 +3380,7 @@ void startTrainerBattle(uint8_t idx, bool hard) {
   buildSquad(top, hard ? tr.count : TRAINER_TEAM_MAX, squadMask);
   if (!btlSquadN) return;
   btlTrainer = (int8_t)idx;
+  btlRegion = gymRegion;
   btlHard = hard;
   btlFoeAt = 0;
   const Trainer &t = TRAINERS[idx];
