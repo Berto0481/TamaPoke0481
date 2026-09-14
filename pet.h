@@ -83,6 +83,17 @@ uint8_t nextAvailableRegion(uint8_t from);
 
 class Pet {
 public:
+  Pet() = default;
+  // Never copy a Pet. It owns a live Preferences handle (`prefs`), whose
+  // destructor closes that handle -- a default memberwise copy would copy the
+  // handle too, so a temporary built from a live, begin()'d Pet closes the
+  // SAME handle the original is still using the moment the temporary goes out
+  // of scope. That silently broke every save (badges, moves, everything) for
+  // the rest of the power-on session, from `Pet tmp = pet;` in buildSquad().
+  // Deleted rather than merely avoided, so it fails to COMPILE instead of
+  // silently corrupting NVS access if this is ever written again.
+  Pet(const Pet &) = delete;
+  Pet &operator=(const Pet &) = delete;
   // Estadisticas 0..100
   uint8_t fullness = 80;  // comida
   uint8_t joy = 80;       // felicidad
