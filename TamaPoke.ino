@@ -3308,10 +3308,22 @@ static void buildSquad(uint8_t maxLvl, uint8_t maxCount, uint16_t mask) {
   btlPetIn = false;
   if (maxCount > TRAINER_TEAM_MAX) maxCount = TRAINER_TEAM_MAX;
   if (!pet.isEgg() && btlSquadN < maxCount && (mask & 1)) {
-    Pet tmp = pet;                       // a copy: the real pet is untouched
-    if (maxLvl && tmp.level() > maxLvl)
-      tmp.ageMinutes = (uint32_t)(maxLvl - 1) * MINUTES_PER_LEVEL;
-    combatantFromPet(btlSquad[btlSquadN++], tmp);
+    // NOT `Pet tmp = pet;`. Pet owns a live Preferences handle (`prefs`), and
+    // Preferences' destructor closes that handle. A byte-for-byte copy of Pet
+    // copies the handle too -- both the real pet and the temporary end up
+    // pointing at the SAME open nvs handle -- so the moment that temporary
+    // went out of scope at the end of this function, ITS destructor closed
+    // the handle the real `pet` was still using. `pet.opened` stayed true
+    // (nothing ever reset it), so every `prefs.put*()` after that silently
+    // failed against a closed handle for the rest of the power-on session --
+    // badges, moves, all of it -- well before winBadge() or anything else
+    // downstream ever ran. Cap the level on the real pet, read it, then put
+    // it back; nothing else touches ageMinutes in between.
+    uint32_t realAge = pet.ageMinutes;
+    if (maxLvl && pet.level() > maxLvl)
+      pet.ageMinutes = (uint32_t)(maxLvl - 1) * MINUTES_PER_LEVEL;
+    combatantFromPet(btlSquad[btlSquadN++], pet);
+    pet.ageMinutes = realAge;
     btlPetIn = true;      // the training reward goes to whoever fought for it
   }
   for (int i = 0; i < PARTY_SLOTS && btlSquadN < maxCount; i++) {
